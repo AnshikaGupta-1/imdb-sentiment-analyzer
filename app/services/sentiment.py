@@ -3,7 +3,7 @@ import httpx
 from typing import List, Dict
 
 
-HF_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
+HF_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
 HF_API_URL = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}"
 
