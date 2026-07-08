@@ -29,6 +29,8 @@
 
             --border:#2d3142;
 
+            --score-ring:#f3d03e;
+
         }
 
         *{
@@ -288,6 +290,48 @@
             line-height:1.8;
 
             margin-bottom:10px;
+
+        }
+
+        .overall-score{
+
+            background:var(--secondary);
+
+            padding:25px 30px;
+
+            border-radius:10px;
+
+            margin-top:35px;
+
+            display:flex;
+
+            align-items:center;
+
+            gap:25px;
+
+        }
+
+        .overall-score .score-value{
+
+            font-size:42px;
+
+            font-weight:bold;
+
+            color:var(--score-ring);
+
+            min-width:90px;
+
+        }
+
+        .overall-score .score-meta h3{
+
+            margin-bottom:6px;
+
+        }
+
+        .overall-score .score-meta p{
+
+            color:#d1d5db;
 
         }
 
@@ -566,17 +610,22 @@
 
         <p>
 
-            This application performs sentiment analysis on real
-            movie reviews fetched from TMDb using a RoBERTa
-            sentiment model hosted on Hugging Face.
+            This app fetches real audience reviews for any movie
+            from TMDb, then classifies each one using
+            <strong>cardiffnlp/twitter-roberta-base-sentiment-latest</strong>,
+            a RoBERTa-based transformer fine-tuned for 3-class
+            sentiment (positive / neutral / negative), served via
+            the Hugging Face Inference API.
 
         </p>
 
         <p>
 
-            Search for a movie, select one of the matching results,
-            and instantly visualize audience sentiment together
-            with individual review classifications.
+            Reviews are classified concurrently and the results are
+            aggregated into a positive/neutral/negative breakdown
+            plus a single confidence-weighted overall score, so you
+            get both the granular per-review view and a quick
+            at-a-glance read on audience reception.
 
         </p>
 
@@ -716,6 +765,35 @@ loading="lazy"
 </div>
 
 </section>
+
+<section class="overall-score">
+
+    <div class="score-value">
+
+        {{ overall_score }}
+
+    </div>
+
+    <div class="score-meta">
+
+        <h3>
+
+            Overall Sentiment: {{ overall_label }}
+
+        </h3>
+
+        <p>
+
+            Confidence-weighted score out of 100, combining every
+            review's classification and the model's certainty
+            about it. 50 is neutral, 100 is unanimously positive.
+
+        </p>
+
+    </div>
+
+</section>
+
   <section class="sentiment-overview">
 
     <div class="sentiment-card positive">
