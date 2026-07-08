@@ -1,1 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MovieSentiment | IMDb Review Analyzer</title>
+
+    <style>
+
+        :root{
+
+            --background:#1c1f2e;
+            --foreground:#f7fafc;
+
+            --secondary:#1e2235;
+
+            --muted:#2d3142;
+
+            --accent:#f3d03e;
+
+            --positive:#4ade80;
+
+            --negative:#ef4444;
+
+            --border:#2d3142;
+
+        }
+
+        *{
+
+            margin:0;
+
+            padding:0;
+
+            box-sizing:border-box;
+
+        }
+
+        body{
+
+            background:var(--background);
+
+            color:var(--foreground);
+
+            font-family:Arial,sans-serif;
+
+        }
+
+        .container{
+
+            width:95%;
+
+            max-width:1200px;
+
+            margin:auto;
+
+        }
+
+        header{
+
+            background:var(--secondary);
+
+            padding:25px 0;
+
+            text-align:center;
+
+            margin-bottom:30px;
+
+        }
+
+        .accent{
+
+            color:var(--accent);
+
+        }
+
+        .search-section{
+
+            text-align:center;
+
+        }
+
+        .search-section h2{
+
+            margin-bottom:10px;
+
+        }
+
+        .search-section p{
+
+            color:#d1d5db;
+
+            margin-bottom:25px;
+
+        }
+
+        .search-container{
+
+            display:flex;
+
+            max-width:650px;
+
+            margin:auto;
+
+        }
+
+        .search-input{
+
+            flex:1;
+
+            padding:14px;
+
+            background:var(--muted);
+
+            color:white;
+
+            border:none;
+
+            outline:none;
+
+            font-size:16px;
+
+            border-radius:8px 0 0 8px;
+
+        }
+
+        .search-button{
+
+            background:var(--accent);
+
+            color:black;
+
+            padding:14px 22px;
+
+            border:none;
+
+            cursor:pointer;
+
+            font-weight:bold;
+
+            border-radius:0 8px 8px 0;
+
+            transition:.2s;
+
+        }
+
+        .search-button:hover{
+
+            opacity:.9;
+
+        }
+
+        .search-button:disabled{
+
+            opacity:.7;
+
+            cursor:not-allowed;
+
+        }
+
+        .description-box{
+
+            margin:40px auto;
+
+            max-width:900px;
+
+            background:var(--secondary);
+
+            border-left:5px solid var(--accent);
+
+            padding:22px;
+
+            border-radius:10px;
+
+            text-align:left;
+
+        }
+
+        .description-box h3{
+
+            color:var(--accent);
+
+            margin-bottom:15px;
+
+        }
+
+        .description-box p{
+
+            line-height:1.8;
+
+            margin-bottom:10px;
+
+        }
+
+        .error-box{
+
+            background:#ef4444;
+
+            padding:15px;
+
+            border-radius:8px;
+
+            margin:25px auto;
+
+            max-width:700px;
+
+            color:white;
+
+            text-align:center;
+
+        }
+
+        .results{
+
+            margin-top:40px;
+
+        }
+
+        .results ul{
+
+            list-style:none;
+
+            padding:0;
+
+        }
+
+        .results li{
+
+            margin-bottom:15px;
+
+        }
+
+        .results a{
+
+            color:var(--accent);
+
+            text-decoration:none;
+
+            font-size:18px;
+
+        }
+
+        .results a:hover{
+
+            text-decoration:underline;
+
+        }
+
+        .movie-details{
+
+            display:grid;
+
+            grid-template-columns:1fr 2fr;
+
+            gap:35px;
+
+            background:var(--secondary);
+
+            padding:30px;
+
+            border-radius:12px;
+
+            margin-top:40px;
+
+        }
+
+        .movie-poster img{
+
+            width:100%;
+
+            border-radius:10px;
+
+        }
+
+        .movie-info h2{
+
+            margin-bottom:15px;
+
+        }
+
+        .movie-info p{
+
+            line-height:1.8;
+
+            margin-bottom:10px;
+
+        }
+
+        .sentiment-overview{
+
+            display:flex;
+
+            gap:25px;
+
+            margin:35px 0;
+
+        }
+
+        .sentiment-card{
+
+            flex:1;
+
+            background:var(--secondary);
+
+            padding:20px;
+
+            border-radius:10px;
+
+        }
+
+        .progress-bar{
+
+            height:12px;
+
+            background:var(--muted);
+
+            border-radius:20px;
+
+            overflow:hidden;
+
+            margin:15px 0;
+
+        }
+
+        .progress{
+
+            height:100%;
+
+            background:var(--positive);
+
+        }
+
+        .negative .progress{
+
+            background:var(--negative);
+
+        }
+
+        .review-card{
+
+            background:var(--secondary);
+
+            padding:22px;
+
+            border-radius:10px;
+
+            margin-bottom:20px;
+
+        }
+
+        .sentiment-positive{
+
+            border-left:5px solid var(--positive);
+
+        }
+
+        .sentiment-negative{
+
+            border-left:5px solid var(--negative);
+
+        }
+
+        .review-card p{
+
+            line-height:1.7;
+
+        }
+
+        #loading{
+
+            display:none;
+
+            text-align:center;
+
+            margin:35px 0;
+
+        }
+
+        .spinner{
+
+            width:45px;
+
+            height:45px;
+
+            border:6px solid #ddd;
+
+            border-top:6px solid #666;
+
+            border-radius:50%;
+
+            margin:auto;
+
+            animation:spin 1s linear infinite;
+
+        }
+
+        @keyframes spin{
+
+            from{
+
+                transform:rotate(0deg);
+
+            }
+
+            to{
+
+                transform:rotate(360deg);
+
+            }
+
+        }
+
+        @media(max-width:768px){
+
+            .search-container{
+
+                flex-direction:column;
+
+            }
+
+            .search-button{
+
+                margin-top:12px;
+
+                border-radius:8px;
+
+            }
+
+            .search-input{
+
+                border-radius:8px;
+
+            }
+
+            .movie-details{
+
+                display:block;
+
+            }
+
+            .sentiment-overview{
+
+                display:block;
+
+            }
+
+            .sentiment-card{
+
+                margin-bottom:20px;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<header>
+
+    <div class="container">
+
+        <h1>
+
+            Movie<span class="accent">Sentiment</span>
+
+        </h1>
+
+    </div>
+
+</header>
+
+<main class="container">
+
+<section class="search-section">
+
+    <h2>
+
+        Analyze IMDb Movie Reviews
+
+    </h2>
+
+    <p>
+
+        Search for any movie and explore audience sentiment using
+        AI-powered review classification.
+
+    </p>
+
+    <form
+        method="POST"
+        action="/search"
+        onsubmit="showLoading()"
+    >
+
+        <div class="search-container">
+
+            <input
+
+                type="text"
+
+                name="movie"
+
+                class="search-input"
+
+                placeholder="Search for a movie..."
+
+                required
+
+            >
+
+            <button
+
+                type="submit"
+
+                id="searchBtn"
+
+                class="search-button"
+
+            >
+
+                Search
+
+            </button>
+
+        </div>
+
+    </form>
+
+    {% if error %}
+
+    <div class="error-box">
+
+        {{ error }}
+
+    </div>
+
+    {% endif %}
+
+    <section class="description-box">
+
+        <h3>
+
+            🛠 About This Project
+
+        </h3>
+
+        <p>
+
+            This application performs sentiment analysis on real
+            movie reviews fetched from TMDb using a DistilBERT
+            sentiment model hosted on Hugging Face.
+
+        </p>
+
+        <p>
+
+            Search for a movie, select one of the matching results,
+            and instantly visualize audience sentiment together
+            with individual review classifications.
+
+        </p>
+
+        <p
+            style="
+            text-align:right;
+            color:var(--accent);
+            "
+        >
+
+            <em>
+
+                Developed by Anshika Gupta
+
+            </em>
+
+        </p>
+
+    </section>
+
+</section>
+
+{% if movies %}
+
+<section class="results">
+
+<h2>
+
+Search Results
+
+</h2>
+
+<br>
+
+<ul>
+
+{% for movie in movies %}
+
+<li>
+
+<a
+
+href="/movie/{{ movie.id }}"
+
+onclick="showLoading()"
+
+>
+
+{{ movie.title }}
+
+({{ movie.year }})
+
+</a>
+
+</li>
+
+{% endfor %}
+
+</ul>
+
+</section>
+
+{% endif %}
+
+{% if title %}
+
+<section class="movie-details">
+
+<div class="movie-poster">
+
+<img
+
+src="{{ poster }}"
+
+alt="{{ title }}"
+
+loading="lazy"
+
+>
+
+</div>
+
+<div class="movie-info">
+
+<h2>
+
+{{ title }}
+
+</h2>
+
+<p>
+
+<strong>Rating:</strong>
+
+{{ rating }}/10
+
+</p>
+
+<p>
+
+<strong>Runtime:</strong>
+
+{{ runtime }} minutes
+
+</p>
+
+<p>
+
+<strong>Genre:</strong>
+
+{{ genres }}
+
+</p>
+
+<p>
+
+{{ overview }}
+
+</p>
+
+<p>
+
+<strong>Director:</strong>
+
+{{ director }}
+
+</p>
+
+<p>
+
+<strong>Cast:</strong>
+
+{{ cast }}
+
+</p>
+
+</div>
+
+</section>
+  <section class="sentiment-overview">
+
+    <div class="sentiment-card positive">
+
+        <h3>
+
+            Positive Reviews
+
+        </h3>
+
+        <h2>
+
+            {{ positive_percent }}%
+
+        </h2>
+
+        <div class="progress-bar">
+
+            <div
+                class="progress"
+                style="width: {{ positive_percent }}%;"
+            ></div>
+
+        </div>
+
+        <p>
+
+            {{ positive_count }} reviews classified as positive.
+
+        </p>
+
+    </div>
+
+    <div class="sentiment-card negative">
+
+        <h3>
+
+            Negative Reviews
+
+        </h3>
+
+        <h2>
+
+            {{ negative_percent }}%
+
+        </h2>
+
+        <div class="progress-bar">
+
+            <div
+                class="progress"
+                style="
+                width: {{ negative_percent }}%;
+                "
+            ></div>
+
+        </div>
+
+        <p>
+
+            {{ negative_count }} reviews classified as negative.
+
+        </p>
+
+    </div>
+
+</section>
+
+<section>
+
+<h2>
+
+Reviews
+
+</h2>
+
+<br>
+
+{% for r in reviews %}
+
+<div class="review-card sentiment-{{ r.label }}">
+
+<p>
+
+"{{ r.content }}"
+
+</p>
+
+<br>
+
+<p>
+
+<strong>
+
+{{ r.author }}
+
+</strong>
+
+{% if r.rating != "N/A" %}
+
+&nbsp;|&nbsp;
+
+Rating:
+
+{{ r.rating }}
+
+{% endif %}
+
+</p>
+
+</div>
+
+{% endfor %}
+
+</section>
+
+{% endif %}
+
+</main>
+
+<div id="loading">
+
+<div class="spinner"></div>
+
+<br>
+
+<p>
+
+Fetching reviews and analysing sentiment...
+
+</p>
+
+<p>
+
+This may take a few seconds.
+
+</p>
+
+</div>
+
+<script>
+
+function showLoading(){
+
+    document.getElementById("loading").style.display="block";
+
+    const button=document.getElementById("searchBtn");
+
+    if(button){
+
+        button.disabled=true;
+
+        button.innerHTML="Searching...";
+
+    }
+
+}
+
+document.addEventListener(
+
+    "DOMContentLoaded",
+
+    function(){
+
+        document
+
+        .querySelectorAll('a[href^="/movie/"]')
+
+        .forEach(
+
+            function(link){
+
+                link.addEventListener(
+
+                    "click",
+
+                    showLoading
+
+                );
+
+            }
+
+        );
+
+    }
+
+);
+
+</script>
+
+</body>
+
+</html>
+  
