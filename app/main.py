@@ -207,7 +207,7 @@ async def movie_details(
         sentiment_result = await sentiment_service.analyze_reviews(
             reviews_raw
         )
-              result = {
+                result = {
             "request": request,
             **metadata,
             **sentiment_result,
