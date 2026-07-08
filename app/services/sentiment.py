@@ -13,7 +13,8 @@ class SentimentService:
     def __init__(self, hf_token: str):
 
         self.headers = {
-            "Authorization": f"Bearer {hf_token}"
+            "Authorization": f"Bearer {hf_token}",
+            "x-wait-for-model": "true",
         }
 
         self.client = httpx.AsyncClient(
@@ -29,25 +30,47 @@ class SentimentService:
 
     # ---------------------------------------------------------
     # Call HuggingFace API for a single piece of text
+    # (with one retry on transient failures)
     # ---------------------------------------------------------
 
-    async def _predict_one(self, text: str):
+    async def _predict_one(self, text: str, review_index: int = -1):
 
-        payload = {
-            "inputs": text
-        }
+        payload = {"inputs": text}
 
         async with self.semaphore:
 
-            response = await self.client.post(
-                HF_API_URL,
-                headers=self.headers,
-                json=payload,
-            )
+            for attempt in range(2):
 
-            response.raise_for_status()
+                try:
+                    response = await self.client.post(
+                        HF_API_URL,
+                        headers=self.headers,
+                        json=payload,
+                    )
 
-            return response.json()
+                    if response.status_code == 503:
+                        print(f"[review {review_index}] 503 model loading, attempt {attempt + 1}")
+                        await asyncio.sleep(3)
+                        continue
+
+                    if response.status_code != 200:
+                        print(
+                            f"[review {review_index}] HF error "
+                            f"{response.status_code}: {response.text[:300]}"
+                        )
+                        response.raise_for_status()
+
+                    return response.json()
+
+                except httpx.HTTPStatusError:
+                    raise
+                except Exception as e:
+                    print(f"[review {review_index}] request failed: {e}")
+                    if attempt == 1:
+                        raise
+                    await asyncio.sleep(2)
+
+            raise RuntimeError(f"[review {review_index}] model did not load in time")
 
     # ---------------------------------------------------------
     # Analyze Reviews
@@ -94,8 +117,8 @@ class SentimentService:
             }
 
         tasks = [
-            self._predict_one(text)
-            for text in texts
+            self._predict_one(text, review_index=i)
+            for i, text in enumerate(texts)
         ]
 
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -107,20 +130,23 @@ class SentimentService:
         for review, result in zip(usable_reviews, raw_results):
 
             if isinstance(result, Exception):
-                print("HF prediction failed for one review:", result)
+                print("Skipping review, prediction failed:", result)
                 continue
 
-            # HF returns: [[{'label':'POSITIVE','score':...}, {'label':'NEGATIVE','score':...}]]
+            # HF returns either:
+            # [{'label':'POSITIVE','score':...}, {'label':'NEGATIVE','score':...}]
+            # or nested: [[{'label':'POSITIVE','score':...}, ...]]
             prediction = result
 
             if isinstance(prediction, list) and len(prediction) > 0:
-                prediction = prediction[0]
+                if isinstance(prediction[0], list):
+                    prediction = prediction[0]
 
             if isinstance(prediction, list) and len(prediction) > 0:
-                # top-scoring class first
                 prediction = max(prediction, key=lambda p: p.get("score", 0))
 
             if not isinstance(prediction, dict) or "label" not in prediction:
+                print("Unexpected HF response shape, skipping:", result)
                 continue
 
             label = prediction["label"]
