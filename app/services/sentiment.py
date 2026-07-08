@@ -3,7 +3,9 @@ import httpx
 from typing import List, Dict
 
 
-HF_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
+# cardiffnlp/twitter-roberta-base-sentiment-latest is reliably kept warm on the
+# hf-inference provider and returns 3 labels: "negative", "neutral", "positive".
+HF_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
 HF_API_URL = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}"
 
@@ -87,8 +89,10 @@ class SentimentService:
                 "reviews": [],
                 "positive_percent": 0,
                 "negative_percent": 0,
+                "neutral_percent": 0,
                 "positive_count": 0,
                 "negative_count": 0,
+                "neutral_count": 0,
             }
 
         texts = []
@@ -112,8 +116,10 @@ class SentimentService:
                 "reviews": [],
                 "positive_percent": 0,
                 "negative_percent": 0,
+                "neutral_percent": 0,
                 "positive_count": 0,
                 "negative_count": 0,
+                "neutral_count": 0,
             }
 
         tasks = [
@@ -126,6 +132,8 @@ class SentimentService:
         analyzed = []
 
         positive_count = 0
+        negative_count = 0
+        neutral_count = 0
 
         for review, result in zip(usable_reviews, raw_results):
 
@@ -134,8 +142,8 @@ class SentimentService:
                 continue
 
             # HF returns either:
-            # [{'label':'POSITIVE','score':...}, {'label':'NEGATIVE','score':...}]
-            # or nested: [[{'label':'POSITIVE','score':...}, ...]]
+            # [{'label':'positive','score':...}, {'label':'neutral','score':...}, {'label':'negative','score':...}]
+            # or nested: [[{'label':'positive','score':...}, ...]]
             prediction = result
 
             if isinstance(prediction, list) and len(prediction) > 0:
@@ -151,14 +159,26 @@ class SentimentService:
 
             label = prediction["label"]
 
-            sentiment = (
-                "positive"
-                if label == "POSITIVE"
-                else "negative"
-            )
+            # cardiffnlp/twitter-roberta-base-sentiment-latest returns lowercase
+            # "positive" / "neutral" / "negative" directly. Some deployments may
+            # instead surface generic "LABEL_0/1/2" ids, so we handle both.
+            label_map = {
+                "positive": "positive",
+                "neutral": "neutral",
+                "negative": "negative",
+                "label_2": "positive",
+                "label_1": "neutral",
+                "label_0": "negative",
+            }
+
+            sentiment = label_map.get(label.lower(), "neutral")
 
             if sentiment == "positive":
                 positive_count += 1
+            elif sentiment == "negative":
+                negative_count += 1
+            else:
+                neutral_count += 1
 
             analyzed.append(
                 {
@@ -188,14 +208,15 @@ class SentimentService:
         if total == 0:
 
             positive_percent = 0
+            negative_percent = 0
+            neutral_percent = 0
 
         else:
 
-            positive_percent = round(
-                (positive_count / total) * 100
-            )
-
-        negative_percent = 100 - positive_percent
+            positive_percent = round((positive_count / total) * 100)
+            negative_percent = round((negative_count / total) * 100)
+            # avoid rounding drift so the three percentages sum to 100
+            neutral_percent = 100 - positive_percent - negative_percent
 
         return {
 
@@ -205,9 +226,13 @@ class SentimentService:
 
             "negative_percent": negative_percent,
 
+            "neutral_percent": neutral_percent,
+
             "positive_count": positive_count,
 
-            "negative_count": total - positive_count,
+            "negative_count": negative_count,
+
+            "neutral_count": neutral_count,
         }
 
     # ---------------------------------------------------------
