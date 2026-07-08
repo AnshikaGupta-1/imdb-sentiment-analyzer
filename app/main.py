@@ -126,6 +126,8 @@ async def movie_details(request: Request, movie_id: int):
                 "positive_count": 0,
                 "negative_count": 0,
                 "neutral_count": 0,
+                "overall_score": 50,
+                "overall_label": "No Data",
                 "error": "No reviews available for this movie.",
             }
             cache.set(cache_key, {k: v for k, v in result.items() if k != "request"})
