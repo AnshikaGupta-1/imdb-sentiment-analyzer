@@ -3,13 +3,9 @@ import httpx
 from typing import List, Dict
 
 
-HF_MODEL = (
-    "distilbert-base-uncased-finetuned-sst-2-english"
-)
+HF_MODEL = "distilbert-base-uncased-finetuned-sst-2-english"
 
-HF_API_URL = (
-    f"https://api-inference.huggingface.co/models/{HF_MODEL}"
-)
+HF_API_URL = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL}"
 
 
 class SentimentService:
