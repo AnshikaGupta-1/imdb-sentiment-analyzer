@@ -24,28 +24,30 @@ class SentimentService:
             ),
         )
 
+        # Limits how many HF requests run at once
+        self.semaphore = asyncio.Semaphore(5)
+
     # ---------------------------------------------------------
-    # Call HuggingFace API
+    # Call HuggingFace API for a single piece of text
     # ---------------------------------------------------------
 
-    async def _predict(
-        self,
-        texts: List[str],
-    ):
+    async def _predict_one(self, text: str):
 
         payload = {
-            "inputs": texts
+            "inputs": text
         }
 
-        response = await self.client.post(
-            HF_API_URL,
-            headers=self.headers,
-            json=payload,
-        )
+        async with self.semaphore:
 
-        response.raise_for_status()
+            response = await self.client.post(
+                HF_API_URL,
+                headers=self.headers,
+                json=payload,
+            )
 
-        return response.json()
+            response.raise_for_status()
+
+            return response.json()
 
     # ---------------------------------------------------------
     # Analyze Reviews
@@ -91,45 +93,35 @@ class SentimentService:
                 "negative_count": 0,
             }
 
-        batch_size = 10
-
-        batches = [
-            texts[i:i + batch_size]
-            for i in range(0, len(texts), batch_size)
-        ]
-
         tasks = [
-            self._predict(batch)
-            for batch in batches
+            self._predict_one(text)
+            for text in texts
         ]
 
-        batch_predictions = await asyncio.gather(*tasks)
-
-        predictions = []
-
-        for batch in batch_predictions:
-
-            if isinstance(batch, list):
-
-                predictions.extend(batch)
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
         analyzed = []
 
         positive_count = 0
 
-        for review, prediction in zip(
-            usable_reviews,
-            predictions,
-        ):
+        for review, result in zip(usable_reviews, raw_results):
 
-            # HF returns:
-            # [[{'label':'POSITIVE','score':...}]]
+            if isinstance(result, Exception):
+                print("HF prediction failed for one review:", result)
+                continue
 
-            if (
-                isinstance(prediction, list)
-                and len(prediction) > 0
-            ):
+            # HF returns: [[{'label':'POSITIVE','score':...}, {'label':'NEGATIVE','score':...}]]
+            prediction = result
+
+            if isinstance(prediction, list) and len(prediction) > 0:
                 prediction = prediction[0]
+
+            if isinstance(prediction, list) and len(prediction) > 0:
+                # top-scoring class first
+                prediction = max(prediction, key=lambda p: p.get("score", 0))
+
+            if not isinstance(prediction, dict) or "label" not in prediction:
+                continue
 
             label = prediction["label"]
 
