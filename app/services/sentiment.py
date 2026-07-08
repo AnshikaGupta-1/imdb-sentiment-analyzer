@@ -93,6 +93,8 @@ class SentimentService:
                 "positive_count": 0,
                 "negative_count": 0,
                 "neutral_count": 0,
+                "overall_score": 50,
+                "overall_label": "No Data",
             }
 
         texts = []
@@ -120,6 +122,8 @@ class SentimentService:
                 "positive_count": 0,
                 "negative_count": 0,
                 "neutral_count": 0,
+                "overall_score": 50,
+                "overall_label": "No Data",
             }
 
         tasks = [
@@ -134,6 +138,11 @@ class SentimentService:
         positive_count = 0
         negative_count = 0
         neutral_count = 0
+
+        # Running sum of signed, confidence-weighted scores, used to derive
+        # a single overall_score below (+score for positive, -score for
+        # negative, 0 for neutral).
+        signed_score_sum = 0.0
 
         for review, result in zip(usable_reviews, raw_results):
 
@@ -173,12 +182,17 @@ class SentimentService:
 
             sentiment = label_map.get(label.lower(), "neutral")
 
+            confidence = prediction.get("score", 0)
+
             if sentiment == "positive":
                 positive_count += 1
+                signed_score_sum += confidence
             elif sentiment == "negative":
                 negative_count += 1
+                signed_score_sum -= confidence
             else:
                 neutral_count += 1
+                # neutral contributes 0, it neither pulls the score up nor down
 
             analyzed.append(
                 {
@@ -210,6 +224,8 @@ class SentimentService:
             positive_percent = 0
             negative_percent = 0
             neutral_percent = 0
+            overall_score = 50
+            overall_label = "No Data"
 
         else:
 
@@ -217,6 +233,24 @@ class SentimentService:
             negative_percent = round((negative_count / total) * 100)
             # avoid rounding drift so the three percentages sum to 100
             neutral_percent = 100 - positive_percent - negative_percent
+
+            # signed_score_sum / total sits in roughly [-1, 1]; rescale to
+            # [0, 100] so 50 reads as neutral, 100 as unanimously confident
+            # positive, and 0 as unanimously confident negative.
+            average_signed_score = signed_score_sum / total
+            overall_score = round(((average_signed_score + 1) / 2) * 100)
+            overall_score = max(0, min(100, overall_score))
+
+            if overall_score >= 75:
+                overall_label = "Very Positive"
+            elif overall_score >= 60:
+                overall_label = "Positive"
+            elif overall_score >= 40:
+                overall_label = "Mixed"
+            elif overall_score >= 25:
+                overall_label = "Negative"
+            else:
+                overall_label = "Very Negative"
 
         return {
 
@@ -233,6 +267,10 @@ class SentimentService:
             "negative_count": negative_count,
 
             "neutral_count": neutral_count,
+
+            "overall_score": overall_score,
+
+            "overall_label": overall_label,
         }
 
     # ---------------------------------------------------------
