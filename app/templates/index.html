@@ -25,6 +25,8 @@
 
             --negative:#ef4444;
 
+            --neutral:#9ca3af;
+
             --border:#2d3142;
 
         }
@@ -339,6 +341,12 @@
 
         }
 
+        .neutral .progress{
+
+            background:var(--neutral);
+
+        }
+
         .review-card{
 
             background:var(--secondary);
@@ -360,6 +368,12 @@
         .sentiment-negative{
 
             border-left:5px solid var(--negative);
+
+        }
+
+        .sentiment-neutral{
+
+            border-left:5px solid var(--neutral);
 
         }
 
@@ -553,7 +567,7 @@
         <p>
 
             This application performs sentiment analysis on real
-            movie reviews fetched from TMDb using a DistilBERT
+            movie reviews fetched from TMDb using a RoBERTa
             sentiment model hosted on Hugging Face.
 
         </p>
@@ -735,6 +749,39 @@ loading="lazy"
 
     </div>
 
+    <div class="sentiment-card neutral">
+
+        <h3>
+
+            Neutral Reviews
+
+        </h3>
+
+        <h2>
+
+            {{ neutral_percent }}%
+
+        </h2>
+
+        <div class="progress-bar">
+
+            <div
+                class="progress"
+                style="
+                width: {{ neutral_percent }}%;
+                "
+            ></div>
+
+        </div>
+
+        <p>
+
+            {{ neutral_count }} reviews classified as neutral.
+
+        </p>
+
+    </div>
+
     <div class="sentiment-card negative">
 
         <h3>
@@ -895,4 +942,3 @@ document.addEventListener(
 </body>
 
 </html>
-  
